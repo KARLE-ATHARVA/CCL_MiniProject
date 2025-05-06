@@ -10,11 +10,21 @@ const COHERE_API_KEY = 'T2iWHmS3Nv9iMkqBMVIfW1ZVxyGUQYeqsdv6r0wU'; // Replace wi
 exports.handler = async (event) => {
   console.log("Lambda triggered. Event:", JSON.stringify(event));
 
-  // Default CORS headers
+  // Get the origin from the request headers
+  const requestOrigin = event.headers?.origin || event.headers?.Origin;
+  
+  // Allow both your Amplify and old S3 URLs (or use '*' for development)
+  const allowedOrigins = [
+    'https://your-amplify-url.amplifyapp.com', // Replace with your actual Amplify URL
+    'http://ccl-miniproject31.s3-website.eu-north-1.amazonaws.com'
+  ];
+
+  // Set CORS headers based on the request origin
   const headers = {
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Origin": 'http://ccl-miniproject31.s3-website.eu-north-1.amazonaws.com',
-    "Access-Control-Allow-Methods": "OPTIONS,POST",
+    "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+    "Access-Control-Allow-Origin": allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0],
+    "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+    "Access-Control-Allow-Credentials": true
   };
 
   // Handle preflight (OPTIONS) request
@@ -34,7 +44,7 @@ exports.handler = async (event) => {
     console.log("Parsed input:", { location, budget, duration, ageGroup, transport });
 
     // Generate the prompt for Cohere API
-    const prompt = `Give me a short 3-day travel plan for a trip to ${location} for someone aged ${ageGroup}, with a ${budget} budget, traveling by ${transport}. Keep it under 300 words and suggest local, budget-friendly activities.`;
+    const prompt = `Give me a short ${duration}-day travel plan for a trip to ${location} for someone aged ${ageGroup}, with a ${budget} budget, traveling by ${transport}. Keep it under 300 words and suggest local, budget-friendly activities.`;
 
     // Making the API call to Cohere
     const cohereResponse = await axios.post(
@@ -89,11 +99,14 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error("Error occurred:", error);
-
+    
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ success: false, error: error.message })
+      body: JSON.stringify({ 
+        success: false, 
+        error: error.response?.data?.message || error.message 
+      })
     };
   }
 };
