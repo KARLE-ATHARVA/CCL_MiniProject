@@ -6,7 +6,7 @@ html, body, #root {
   color: black;
   display: flex;
   flex-direction: column;
-  background-image: url('http://www.pixelstalk.net/wp-content/uploads/2016/08/Desktop-Free-Images-Travel.jpg');
+  background-image: url('https://www.pixelstalk.net/wp-content/uploads/2016/08/Desktop-Free-Images-Travel.jpg');
   background-position: center;
   background-size: cover;
   z-index: -1;

@@ -4,27 +4,26 @@ const AWS = require('aws-sdk');
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: 'eu-north-1' });
 
-// Directly using the Cohere API key
-const COHERE_API_KEY = 'T2iWHmS3Nv9iMkqBMVIfW1ZVxyGUQYeqsdv6r0wU'; // Replace with your actual API key
+// Environment variables (set in Lambda configuration)
+const COHERE_API_KEY = process.env.COHERE_API_KEY || 'T2iWHmS3Nv9iMkqBMVIfW1ZVxyGUQYeqsdv6r0wU';
+const ALLOWED_ORIGINS = [
+  'https://d3vef5cubamhc3.amplifyapp.com', // Your Amplify URL
+  'http://ccl-miniproject31.s3-website.eu-north-1.amazonaws.com' // Your S3 URL
+];
 
 exports.handler = async (event) => {
   console.log("Lambda triggered. Event:", JSON.stringify(event));
 
-  // Get the origin from the request headers
-  const requestOrigin = event.headers?.origin || event.headers?.Origin;
+  // Get the request origin
+  const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
   
-  // Allow both your Amplify and old S3 URLs (or use '*' for development)
-  const allowedOrigins = [
-    'https://your-amplify-url.amplifyapp.com', // Replace with your actual Amplify URL
-    'http://ccl-miniproject31.s3-website.eu-north-1.amazonaws.com'
-  ];
-
-  // Set CORS headers based on the request origin
+  // Set CORS headers
   const headers = {
     "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-    "Access-Control-Allow-Origin": allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0],
+    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0],
     "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-    "Access-Control-Allow-Credentials": true
+    "Access-Control-Allow-Credentials": true,
+    "Content-Type": "application/json"
   };
 
   // Handle preflight (OPTIONS) request
@@ -37,75 +36,96 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Parsing the input body
+    // Validate request
+    if (!event.body) {
+      throw new Error("Missing request body");
+    }
+
+    // Parse and validate input
     const body = JSON.parse(event.body);
     const { location, budget, duration, ageGroup, transport } = body;
 
-    console.log("Parsed input:", { location, budget, duration, ageGroup, transport });
+    if (!location || !budget || !duration || !ageGroup || !transport) {
+      throw new Error("Missing required fields");
+    }
+
+    console.log("Validated input:", { location, budget, duration, ageGroup, transport });
 
     // Generate the prompt for Cohere API
-    const prompt = `Give me a short ${duration}-day travel plan for a trip to ${location} for someone aged ${ageGroup}, with a ${budget} budget, traveling by ${transport}. Keep it under 300 words and suggest local, budget-friendly activities.`;
+    const prompt = `Create a detailed ${duration}-day travel itinerary for ${location} for ${ageGroup} year olds with a ${budget} budget using ${transport}. Include: 
+    - Daily activities
+    - Budget-friendly dining options
+    - Transportation tips
+    - Cultural highlights
+    Keep response under 300 words.`;
 
-    // Making the API call to Cohere
+    // Call Cohere API
     const cohereResponse = await axios.post(
       'https://api.cohere.ai/generate',
       {
         model: "command",
         prompt: prompt,
-        max_tokens: 300,
-        temperature: 0.7
+        max_tokens: 350,
+        temperature: 0.7,
+        truncate: "END"
       },
       {
         headers: {
           'Authorization': `Bearer ${COHERE_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        timeout: 25000
+        timeout: 30000
       }
     );
 
-    const responseText = cohereResponse?.data?.text;
-    const generatedPlan = responseText
-      ? responseText.trim()
-      : "Sorry, we couldn't generate a travel plan at this time.";
+    const responseText = cohereResponse?.data?.generations?.[0]?.text || 
+                       cohereResponse?.data?.text || 
+                       "Sorry, we couldn't generate a travel plan at this time.";
 
-    const id = uuidv4();
+    const generatedPlan = responseText.trim();
 
+    // Save to DynamoDB
     const item = {
-      id,
+      id: uuidv4(),
       location,
       budget,
       duration,
       ageGroup,
       transport,
       generatedPlan,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ipAddress: event.requestContext?.identity?.sourceIp || 'unknown'
     };
-
-    console.log("Writing to DynamoDB:", item);
 
     await dynamoDB.put({
       TableName: 'TravelPlans',
-      Item: item
+      Item: item,
+      ConditionExpression: "attribute_not_exists(id)" // Prevent overwrites
     }).promise();
-
-    console.log("PutItem succeeded");
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, data: item })
+      body: JSON.stringify({ 
+        success: true, 
+        data: {
+          ...item,
+          generatedPlan: generatedPlan.replace(/\n/g, '<br>') // Format line breaks for HTML
+        }
+      })
     };
 
   } catch (error) {
     console.error("Error occurred:", error);
     
     return {
-      statusCode: 500,
+      statusCode: error.response?.status || 500,
       headers,
       body: JSON.stringify({ 
         success: false, 
-        error: error.response?.data?.message || error.message 
+        error: error.response?.data?.message || error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
