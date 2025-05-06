@@ -13,9 +13,7 @@ const TravelPlanner = () => {
 
   const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false); // Track if the form is submitted
-
-  const API_URL = import.meta.env.VITE_API_URL;
+  const [submitted, setSubmitted] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,14 +23,17 @@ const TravelPlanner = () => {
     e.preventDefault();
     setLoading(true);
     setResponse(null);
-    setSubmitted(true); // Form submitted, shift the form to left
+    setSubmitted(true);
 
     try {
-      const res = await axios.post(`${API_URL}/generate-plan`, formData);
+      const res = await axios.post('/api/generate-plan', formData);
       setResponse(res.data);
     } catch (error) {
       console.error('Error:', error);
-      setResponse({ success: false, error: error.message });
+      setResponse({ 
+        success: false, 
+        error: error.response?.data?.error || error.message 
+      });
     }
 
     setLoading(false);
@@ -40,7 +41,6 @@ const TravelPlanner = () => {
 
   return (
     <>
-      {/* Top Navbar */}
       <nav className="topnav">
         <div className="nav-left">
           <img src="https://img.icons8.com/ios-filled/50/ffffff/user-male-circle.png" alt="Profile" className="nav-icon" />
@@ -50,10 +50,8 @@ const TravelPlanner = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="travel-planner-container">
         <div className={`form-and-response ${submitted ? 'shifted' : ''}`}>
-          {/* Form Section */}
           <div className="form-container">
             <h2>Travel Plan Generator</h2>
             <form onSubmit={handleSubmit} className="travel-form">
@@ -98,7 +96,6 @@ const TravelPlanner = () => {
             </form>
           </div>
 
-          {/* Response Section */}
           <div className="response-container">
             {response && (
               <div className="response-box">
