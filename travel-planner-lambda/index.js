@@ -1,37 +1,26 @@
+const AWS = require('aws-sdk');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-const AWS = require('aws-sdk');
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient({ region: 'eu-north-1' });
-
-// Environment variables (set in Lambda configuration)
-const COHERE_API_KEY = process.env.COHERE_API_KEY || 'T2iWHmS3Nv9iMkqBMVIfW1ZVxyGUQYeqsdv6r0wU';
-const ALLOWED_ORIGINS = [
-  'https://d3vef5cubamhc3.amplifyapp.com', // Your Amplify URL
-  'http://ccl-miniproject31.s3-website.eu-north-1.amazonaws.com' // Your S3 URL
-];
+const COHERE_API_KEY = 'T2iWHmS3Nv9iMkqBMVIfW1ZVxyGUQYeqsdv6r0wU';
 
 exports.handler = async (event) => {
-  console.log("Lambda triggered. Event:", JSON.stringify(event));
-
-  // Get the request origin
-  const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
-  
-  // Set CORS headers
+  // CORS Configuration
   const headers = {
-    "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-    "Access-Control-Allow-Credentials": true,
+    "Access-Control-Allow-Origin": "https://atharva.d3vef5cubamhc3.amplifyapp.com",
+    "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+    "Access-Control-Allow-Methods": "OPTIONS,POST",
+    "Access-Control-Allow-Credentials": "true",
     "Content-Type": "application/json"
   };
 
-  // Handle preflight (OPTIONS) request
+  // Handle OPTIONS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ message: 'CORS preflight success' })
+      body: JSON.stringify({ message: 'CORS preflight successful' })
     };
   }
 
@@ -104,6 +93,7 @@ exports.handler = async (event) => {
       ConditionExpression: "attribute_not_exists(id)" // Prevent overwrites
     }).promise();
 
+
     return {
       statusCode: 200,
       headers,
@@ -120,13 +110,10 @@ exports.handler = async (event) => {
     console.error("Error occurred:", error);
     
     return {
-      statusCode: error.response?.status || 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: error.response?.data?.message || error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      })
+      body: JSON.stringify(responseData)
     };
+    
   }
 };

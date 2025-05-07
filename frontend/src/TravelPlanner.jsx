@@ -16,40 +16,28 @@ const TravelPlanner = () => {
   const [submitted, setSubmitted] = useState(false);
 
   // Updated API configuration
-  const API_URL = import.meta.env.PROD 
-    ? 'https://k5m74a3y7k.execute-api.eu-north-1.amazonaws.com/prod' // Replace with your actual API Gateway URL
-    : '/api';
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const API_URL = 'https://k5m74a3y7k.execute-api.eu-north-1.amazonaws.com/prod';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setResponse(null);
-    setSubmitted(true);
-
+    
     try {
       const res = await axios.post(`${API_URL}/generate-plan`, formData, {
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        withCredentials: true
       });
       setResponse(res.data);
     } catch (error) {
-      console.error('API Error:', error);
-      setResponse({ 
-        success: false, 
-        error: error.response?.data?.error || 
-               error.response?.data?.message || 
-               'Failed to connect to the server. Please try again later.'
+      setResponse({
+        success: false,
+        error: error.response?.data?.error || 'Failed to connect to server'
       });
     }
-
     setLoading(false);
   };
-
   return (
     <>
       <nav className="topnav">
