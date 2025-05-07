@@ -15,13 +15,21 @@ const TravelPlanner = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Updated API configuration
   const API_URL = 'https://k5m74a3y7k.execute-api.eu-north-1.amazonaws.com/prod';
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+    setSubmitted(true);
+
     try {
       const res = await axios.post(`${API_URL}/generate-plan`, formData, {
         headers: {
@@ -38,14 +46,15 @@ const TravelPlanner = () => {
     }
     setLoading(false);
   };
+
   return (
     <>
       <nav className="topnav">
         <div className="nav-left">
-          <img src="https://img.icons8.com/ios-filled/50/ffffff/user-male-circle.png" alt="Profile" className="nav-icon" />
+          <img src="http://img.icons8.com/ios-filled/50/ffffff/user-male-circle.png" alt="Profile" className="nav-icon" />
         </div>
         <div className="nav-right">
-          <img src="https://img.icons8.com/ios-filled/50/ffffff/menu--v1.png" alt="Menu" className="nav-icon" />
+          <img src="http://img.icons8.com/ios-filled/50/ffffff/menu--v1.png" alt="Menu" className="nav-icon" />
         </div>
       </nav>
 
