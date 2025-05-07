@@ -31,7 +31,7 @@ const TravelPlanner = () => {
     setSubmitted(true);
 
     try {
-      const res = await axios.post(`${API_URL}/generate-plan`, formData, {
+      const res = await axios.post(`/api/generate-plan`, formData, {
         headers: {
           'Content-Type': 'application/json'
         },
